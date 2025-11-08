@@ -25,6 +25,9 @@
 #include <ctime>
 #include <syslog.h>
 #include <unistd.h>
+#if defined(ENABLE_JSON) && ENABLE_JSON
+#include <json/json.h>
+#endif
 
 namespace simple_utcd {
 
@@ -32,6 +35,7 @@ Logger::Logger()
     : current_level_(LogLevel::INFO)
     , console_enabled_(true)
     , syslog_enabled_(false)
+    , json_format_(false)
 {
     // Initialize syslog if enabled
     if (syslog_enabled_) {
@@ -80,6 +84,10 @@ void Logger::enable_syslog(bool enable) {
     }
 }
 
+void Logger::set_json_format(bool enable) {
+    json_format_ = enable;
+}
+
 void Logger::debug(const std::string& message) {
     log(LogLevel::DEBUG, message);
 }
@@ -103,9 +111,15 @@ void Logger::log(LogLevel level, const std::string& message) {
 
     std::lock_guard<std::mutex> lock(log_mutex_);
 
-    std::string timestamp = get_timestamp();
-    std::string level_str = level_to_string(level);
-    std::string log_message = "[" + timestamp + "] [" + level_str + "] " + message;
+    std::string log_message;
+    
+    if (json_format_) {
+        log_message = format_json_log(level, message);
+    } else {
+        std::string timestamp = get_timestamp();
+        std::string level_str = level_to_string(level);
+        log_message = "[" + timestamp + "] [" + level_str + "] " + message;
+    }
 
     // Console output
     if (console_enabled_) {
@@ -122,7 +136,7 @@ void Logger::log(LogLevel level, const std::string& message) {
         file_stream_->flush();
     }
 
-    // Syslog output
+    // Syslog output (always use plain text for syslog)
     if (syslog_enabled_) {
         int priority;
         switch (level) {
@@ -172,6 +186,52 @@ std::string Logger::get_timestamp() {
     ss << '.' << std::setfill('0') << std::setw(3) << ms.count();
 
     return ss.str();
+}
+
+std::string Logger::format_json_log(LogLevel level, const std::string& message) {
+#if defined(ENABLE_JSON) && ENABLE_JSON
+    auto now = std::chrono::system_clock::now();
+    auto time_t = std::chrono::system_clock::to_time_t(now);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()) % 1000;
+    
+    // Get ISO 8601 timestamp
+    std::stringstream timestamp_ss;
+    timestamp_ss << std::put_time(std::gmtime(&time_t), "%Y-%m-%dT%H:%M:%S");
+    timestamp_ss << '.' << std::setfill('0') << std::setw(3) << ms.count() << "Z";
+    
+    // Get Unix timestamp for Prometheus compatibility
+    auto unix_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+        now.time_since_epoch()).count();
+    
+    Json::Value log_entry;
+    log_entry["timestamp"] = timestamp_ss.str();
+    log_entry["unix_timestamp"] = static_cast<int64_t>(unix_timestamp);
+    log_entry["level"] = level_to_string(level);
+    log_entry["message"] = message;
+    log_entry["service"] = "simple-utcd";
+    
+    // Add Prometheus-compatible metrics fields
+    log_entry["metric_type"] = "log";
+    log_entry["severity"] = level_to_string(level);
+    
+    // Add process info for observability
+    log_entry["pid"] = static_cast<int>(getpid());
+    
+    Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";  // Compact JSON
+    std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+    
+    std::ostringstream json_stream;
+    writer->write(log_entry, &json_stream);
+    
+    return json_stream.str();
+#else
+    // Fallback to plain text if JSON not available
+    std::string timestamp = get_timestamp();
+    std::string level_str = level_to_string(level);
+    return "[" + timestamp + "] [" + level_str + "] " + message;
+#endif
 }
 
 } // namespace simple_utcd
