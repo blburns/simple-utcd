@@ -26,11 +26,11 @@
 
 namespace simple_utcd {
 
-UTCPacket::UTCPacket() : timestamp_(0) {
+UTCPacket::UTCPacket() : timestamp_(0), version_(1), mode_(3) {
     timestamp_ = get_current_utc_timestamp();
 }
 
-UTCPacket::UTCPacket(uint32_t timestamp) : timestamp_(timestamp) {
+UTCPacket::UTCPacket(uint32_t timestamp) : timestamp_(timestamp), version_(1), mode_(3) {
 }
 
 UTCPacket::~UTCPacket() {
@@ -38,19 +38,45 @@ UTCPacket::~UTCPacket() {
 }
 
 bool UTCPacket::from_bytes(const std::vector<uint8_t>& data) {
-    if (data.size() < get_packet_size()) {
+    // Enhanced validation: check packet size first
+    if (!validate_packet_size(data.size())) {
         UTC_ERROR("UTCPacket", "Invalid packet size: expected " + std::to_string(get_packet_size()) +
                   " bytes, got " + std::to_string(data.size()));
         return false;
     }
 
-    // UTC protocol uses a simple 32-bit timestamp
+    // For basic UTC protocol (4 bytes), parse timestamp
     // Network byte order (big-endian)
     timestamp_ = (static_cast<uint32_t>(data[0]) << 24) |
                  (static_cast<uint32_t>(data[1]) << 16) |
                  (static_cast<uint32_t>(data[2]) << 8) |
                  static_cast<uint32_t>(data[3]);
 
+    // For extended packets (future), parse version and mode
+    if (data.size() >= 6) {
+        version_ = data[4];
+        mode_ = data[5];
+        
+        // Validate version
+        if (!validate_version(version_)) {
+            UTC_ERROR("UTCPacket", "Invalid protocol version: " + std::to_string(version_));
+            return false;
+        }
+        
+        // Validate mode
+        if (!validate_mode(mode_)) {
+            UTC_ERROR("UTCPacket", "Invalid packet mode: " + std::to_string(mode_));
+            return false;
+        }
+    }
+
+    // Validate checksum if present (for extended packets)
+    if (data.size() >= 8 && !validate_checksum(data)) {
+        UTC_ERROR("UTCPacket", "Checksum validation failed");
+        return false;
+    }
+
+    // Validate timestamp
     if (!is_valid()) {
         UTC_ERROR("UTCPacket", "Invalid timestamp in packet: " + std::to_string(timestamp_));
         return false;
@@ -137,7 +163,6 @@ bool UTCPacket::validate_timestamp(uint32_t timestamp) const {
     // Not before 1970 (Unix epoch) and not too far in the future
 
     const uint32_t unix_epoch = 0; // January 1, 1970
-    const uint32_t max_reasonable = 4294967295U; // Max uint32_t
 
     // Check if timestamp is within reasonable bounds
     if (timestamp < unix_epoch) {
@@ -157,6 +182,49 @@ bool UTCPacket::validate_timestamp(uint32_t timestamp) const {
     }
 
     return true;
+}
+
+bool UTCPacket::validate_packet_size(size_t size) const {
+    // Basic UTC packet is 4 bytes (timestamp only)
+    // Extended packets can be 6+ bytes (with version/mode/checksum)
+    return size >= get_packet_size() && size <= 48; // Max reasonable packet size
+}
+
+bool UTCPacket::validate_checksum(const std::vector<uint8_t>& data) const {
+    if (data.size() < 8) {
+        return true; // No checksum for basic packets
+    }
+    
+    // Extract stored checksum (last 2 bytes)
+    uint16_t stored_checksum = (static_cast<uint16_t>(data[data.size() - 2]) << 8) |
+                               static_cast<uint16_t>(data[data.size() - 1]);
+    
+    // Calculate checksum for data (excluding checksum bytes)
+    std::vector<uint8_t> data_for_checksum(data.begin(), data.end() - 2);
+    uint16_t calculated_checksum = calculate_checksum(data_for_checksum);
+    
+    return stored_checksum == calculated_checksum;
+}
+
+uint16_t UTCPacket::calculate_checksum(const std::vector<uint8_t>& data) const {
+    // Simple checksum: sum of all bytes
+    uint32_t sum = 0;
+    for (uint8_t byte : data) {
+        sum += byte;
+    }
+    // Return 16-bit checksum
+    return static_cast<uint16_t>(sum & 0xFFFF);
+}
+
+bool UTCPacket::validate_version(uint8_t version) const {
+    // Supported protocol versions: 1-4
+    return version >= 1 && version <= 4;
+}
+
+bool UTCPacket::validate_mode(uint8_t mode) const {
+    // Valid modes: 0-7 (3 bits)
+    // Mode 3 = client request, Mode 4 = server response
+    return mode <= 7;
 }
 
 } // namespace simple_utcd

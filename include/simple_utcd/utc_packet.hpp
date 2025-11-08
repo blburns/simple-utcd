@@ -37,6 +37,8 @@ public:
     // UTC time handling
     uint32_t get_timestamp() const { return timestamp_; }
     void set_timestamp(uint32_t timestamp) { timestamp_ = timestamp; }
+    uint8_t get_version() const { return version_; }
+    uint8_t get_mode() const { return mode_; }
 
     // Current time utilities
     static uint32_t get_current_utc_timestamp();
@@ -46,14 +48,21 @@ public:
     // Validation
     bool is_valid() const;
     size_t get_packet_size() const;
+    bool validate_packet_size(size_t size) const;
+    bool validate_checksum(const std::vector<uint8_t>& data) const;
+    bool validate_version(uint8_t version) const;
+    bool validate_mode(uint8_t mode) const;
 
     // Debugging
     std::string to_string() const;
 
 private:
     uint32_t timestamp_;
+    uint8_t version_;  // Protocol version
+    uint8_t mode_;     // Packet mode
 
     bool validate_timestamp(uint32_t timestamp) const;
+    uint16_t calculate_checksum(const std::vector<uint8_t>& data) const;
 };
 
 } // namespace simple_utcd
