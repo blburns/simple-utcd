@@ -290,13 +290,21 @@ uint32_t UTCServer::get_utc_timestamp() {
 }
 
 void UTCServer::update_reference_time() {
-    // This would typically synchronize with upstream time servers
-    // For now, we just use the system time
-    // In a full implementation, this would:
-    // 1. Query upstream NTP servers
-    // 2. Calculate time offset
-    // 3. Apply drift compensation
-    // 4. Update local time reference
+    // Version 0.1.0: Basic implementation using system time
+    // This provides functional UTC time service using the local system clock.
+    // 
+    // Future versions (0.2.0+) will add:
+    // - Upstream NTP server synchronization
+    // - Time offset calculation and drift compensation
+    // - Multiple upstream server support with failover
+    // - Stratum management and reference clock support
+    //
+    // For now, the system time is sufficient for basic UTC daemon functionality.
+    // The system clock should be synchronized via the OS's time service (ntpd, systemd-timesyncd, etc.)
+    
+    if (logger_) {
+        logger_->debug("Reference time updated (using system time)");
+    }
 }
 
 } // namespace simple_utcd
