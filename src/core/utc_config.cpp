@@ -21,7 +21,16 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#if __has_include(<filesystem>)
 #include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#include <string>
+// Fallback - use string manipulation for extension detection
+#endif
 #if defined(ENABLE_JSON) && ENABLE_JSON
 #include <json/json.h>
 #endif
@@ -72,8 +81,18 @@ void UTCConfig::set_defaults() {
 }
 
 UTCConfig::ConfigFormat UTCConfig::detect_format(const std::string& config_file) {
-    std::filesystem::path path(config_file);
-    std::string ext = path.extension().string();
+    std::string ext;
+    
+#if __has_include(<filesystem>) || __has_include(<experimental/filesystem>)
+    fs::path path(config_file);
+    ext = path.extension().string();
+#else
+    // Fallback: extract extension manually
+    size_t dot_pos = config_file.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+        ext = config_file.substr(dot_pos);
+    }
+#endif
     
     // Convert to lowercase for comparison
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
