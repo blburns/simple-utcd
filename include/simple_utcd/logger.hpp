@@ -42,6 +42,8 @@ public:
     void set_log_file(const std::string& filename);
     void enable_console(bool enable);
     void enable_syslog(bool enable);
+    void set_json_format(bool enable);
+    bool is_json_format() const { return json_format_; }
 
     void debug(const std::string& message);
     void info(const std::string& message);
@@ -74,6 +76,7 @@ private:
     std::unique_ptr<std::ofstream> file_stream_;
     bool console_enabled_;
     bool syslog_enabled_;
+    bool json_format_;
     std::mutex log_mutex_;
 
     void log(LogLevel level, const std::string& message);
@@ -87,6 +90,7 @@ private:
 
     std::string level_to_string(LogLevel level);
     std::string get_timestamp();
+    std::string format_json_log(LogLevel level, const std::string& message);
 };
 
 } // namespace simple_utcd

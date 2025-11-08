@@ -31,6 +31,16 @@ public:
 
     bool load(const std::string& config_file);
     bool save(const std::string& config_file);
+    
+    // Format detection and loading
+    enum class ConfigFormat {
+        AUTO,  // Auto-detect from extension
+        INI,
+        YAML,
+        JSON
+    };
+    bool load(const std::string& config_file, ConfigFormat format);
+    static ConfigFormat detect_format(const std::string& config_file);
 
     // Network Configuration
     const std::string& get_listen_address() const { return listen_address_; }
@@ -131,6 +141,12 @@ private:
     bool parse_config_line(const std::string& line);
     std::string trim(const std::string& str);
     std::vector<std::string> parse_list(const std::string& str);
+    
+    // Format-specific parsers
+    bool load_ini(const std::string& config_file);
+    bool load_yaml(const std::string& config_file);
+    bool load_json(const std::string& config_file);
+    bool set_value(const std::string& key, const std::string& value);
 };
 
 } // namespace simple_utcd
