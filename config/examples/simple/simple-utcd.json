@@ -1,0 +1,40 @@
+{
+  "network": {
+    "listen_address": "0.0.0.0",
+    "listen_port": 37,
+    "enable_ipv6": true,
+    "max_connections": 100
+  },
+  "server": {
+    "stratum": 2,
+    "reference_id": "UTC",
+    "reference_clock": "UTC",
+    "upstream_servers": [
+      "time.nist.gov",
+      "time.google.com",
+      "pool.ntp.org"
+    ],
+    "sync_interval": 64,
+    "timeout": 1000
+  },
+  "logging": {
+    "log_file": "/var/log/simple-utcd/simple-utcd.log",
+    "log_level": "INFO",
+    "enable_console_logging": true,
+    "enable_syslog": false
+  },
+  "security": {
+    "enable_authentication": false,
+    "authentication_key": "",
+    "restrict_queries": false,
+    "allowed_clients": [],
+    "denied_clients": []
+  },
+  "performance": {
+    "worker_threads": 2,
+    "max_packet_size": 1024,
+    "enable_statistics": true,
+    "stats_interval": 60
+  }
+}
+
