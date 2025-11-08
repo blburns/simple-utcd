@@ -296,21 +296,21 @@
 - [ ] Announcement published
 - [ ] Support channels ready
 
-## Version 0.1.1 - Multi-Format Config & JSON Logging 📋 IN PROGRESS
+## Version 0.1.1 - Multi-Format Config & JSON Logging ✅ COMPLETED
 
 ### Configuration Format Support
-- [ ] INI format configuration parser
-- [ ] YAML format configuration parser
-- [ ] JSON format configuration parser
-- [ ] Auto-detection of config format from file extension
-- [ ] Unified configuration interface across all formats
+- [x] INI format configuration parser (enhanced existing)
+- [x] YAML format configuration parser (basic key:value support)
+- [x] JSON format configuration parser (full structured support)
+- [x] Auto-detection of config format from file extension
+- [x] Unified configuration interface across all formats
 
 ### JSON Logging for Observability
-- [ ] JSON log format output
-- [ ] Structured logging with metadata
-- [ ] Prometheus-compatible metrics in logs
-- [ ] Configurable JSON log format
-- [ ] Integration with log aggregation systems
+- [x] JSON log format output
+- [x] Structured logging with metadata (ISO 8601 timestamps, process ID, service name)
+- [x] Prometheus-compatible metrics in logs (metric_type, severity, unix_timestamp)
+- [x] Configurable JSON log format (via set_json_format())
+- [x] Integration with log aggregation systems (structured JSON output)
 
 ## Progress Tracking
 
