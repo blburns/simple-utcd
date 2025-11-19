@@ -21,6 +21,8 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <sys/stat.h>
 #if __has_include(<filesystem>)
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -38,7 +40,65 @@ namespace fs = std::experimental::filesystem;
 namespace simple_utcd {
 
 UTCConfig::UTCConfig() {
+    file_watching_enabled_ = false;
+    last_file_check_ = std::chrono::system_clock::now();
     set_defaults();
+}
+
+UTCConfig::UTCConfig(const UTCConfig& other) {
+    // Copy all members
+    listen_address_ = other.listen_address_;
+    listen_port_ = other.listen_port_;
+    enable_ipv6_ = other.enable_ipv6_;
+    max_connections_ = other.max_connections_;
+    stratum_ = other.stratum_;
+    reference_id_ = other.reference_id_;
+    reference_clock_ = other.reference_clock_;
+    upstream_servers_ = other.upstream_servers_;
+    sync_interval_ = other.sync_interval_;
+    timeout_ = other.timeout_;
+    log_file_ = other.log_file_;
+    log_level_ = other.log_level_;
+    enable_console_logging_ = other.enable_console_logging_;
+    enable_syslog_ = other.enable_syslog_;
+    enable_authentication_ = other.enable_authentication_;
+    authentication_key_ = other.authentication_key_;
+    restrict_queries_ = other.restrict_queries_;
+    allowed_clients_ = other.allowed_clients_;
+    denied_clients_ = other.denied_clients_;
+    worker_threads_ = other.worker_threads_;
+    max_packet_size_ = other.max_packet_size_;
+    enable_statistics_ = other.enable_statistics_;
+    stats_interval_ = other.stats_interval_;
+}
+
+UTCConfig& UTCConfig::operator=(const UTCConfig& other) {
+    if (this != &other) {
+        listen_address_ = other.listen_address_;
+        listen_port_ = other.listen_port_;
+        enable_ipv6_ = other.enable_ipv6_;
+        max_connections_ = other.max_connections_;
+        stratum_ = other.stratum_;
+        reference_id_ = other.reference_id_;
+        reference_clock_ = other.reference_clock_;
+        upstream_servers_ = other.upstream_servers_;
+        sync_interval_ = other.sync_interval_;
+        timeout_ = other.timeout_;
+        log_file_ = other.log_file_;
+        log_level_ = other.log_level_;
+        enable_console_logging_ = other.enable_console_logging_;
+        enable_syslog_ = other.enable_syslog_;
+        enable_authentication_ = other.enable_authentication_;
+        authentication_key_ = other.authentication_key_;
+        restrict_queries_ = other.restrict_queries_;
+        allowed_clients_ = other.allowed_clients_;
+        denied_clients_ = other.denied_clients_;
+        worker_threads_ = other.worker_threads_;
+        max_packet_size_ = other.max_packet_size_;
+        enable_statistics_ = other.enable_statistics_;
+        stats_interval_ = other.stats_interval_;
+    }
+    return *this;
 }
 
 UTCConfig::~UTCConfig() {
@@ -110,6 +170,8 @@ UTCConfig::ConfigFormat UTCConfig::detect_format(const std::string& config_file)
 }
 
 bool UTCConfig::load(const std::string& config_file) {
+    config_file_path_ = config_file;
+    last_file_check_ = std::chrono::system_clock::now();
     return load(config_file, ConfigFormat::AUTO);
 }
 
@@ -539,6 +601,238 @@ bool UTCConfig::set_value(const std::string& key, const std::string& value) {
     
     // Use existing parse_config_line logic
     return parse_config_line(key + " = " + value);
+}
+
+void UTCConfig::load_from_environment() {
+    // Network configuration
+    std::string env_value = get_env_var("SIMPLE_UTCD_LISTEN_ADDRESS");
+    if (!env_value.empty()) {
+        listen_address_ = env_value;
+    }
+    
+    env_value = get_env_var("SIMPLE_UTCD_LISTEN_PORT");
+    if (!env_value.empty()) {
+        try {
+            listen_port_ = std::stoi(env_value);
+        } catch (...) {
+            // Invalid port, keep default
+        }
+    }
+    
+    env_value = get_env_var("SIMPLE_UTCD_ENABLE_IPV6");
+    if (!env_value.empty()) {
+        enable_ipv6_ = (env_value == "true" || env_value == "1" || env_value == "yes");
+    }
+    
+    env_value = get_env_var("SIMPLE_UTCD_MAX_CONNECTIONS");
+    if (!env_value.empty()) {
+        try {
+            max_connections_ = std::stoi(env_value);
+        } catch (...) {
+            // Invalid value, keep default
+        }
+    }
+    
+    // Server configuration
+    env_value = get_env_var("SIMPLE_UTCD_STRATUM");
+    if (!env_value.empty()) {
+        try {
+            stratum_ = std::stoi(env_value);
+        } catch (...) {
+            // Invalid value, keep default
+        }
+    }
+    
+    env_value = get_env_var("SIMPLE_UTCD_LOG_LEVEL");
+    if (!env_value.empty()) {
+        log_level_ = env_value;
+    }
+    
+    env_value = get_env_var("SIMPLE_UTCD_LOG_FILE");
+    if (!env_value.empty()) {
+        log_file_ = env_value;
+    }
+    
+    env_value = get_env_var("SIMPLE_UTCD_WORKER_THREADS");
+    if (!env_value.empty()) {
+        try {
+            worker_threads_ = std::stoi(env_value);
+        } catch (...) {
+            // Invalid value, keep default
+        }
+    }
+    
+    // Security configuration (sensitive data)
+    env_value = get_env_var("SIMPLE_UTCD_AUTH_KEY");
+    if (!env_value.empty()) {
+        authentication_key_ = env_value;
+        enable_authentication_ = true;
+    }
+}
+
+std::string UTCConfig::get_env_var(const std::string& name, const std::string& default_value) {
+    const char* value = std::getenv(name.c_str());
+    if (value != nullptr) {
+        return std::string(value);
+    }
+    return default_value;
+}
+
+bool UTCConfig::validate() const {
+    validation_errors_.clear();
+    
+    bool valid = true;
+    valid &= validate_network_config();
+    valid &= validate_server_config();
+    valid &= validate_logging_config();
+    valid &= validate_security_config();
+    valid &= validate_performance_config();
+    
+    return valid;
+}
+
+std::vector<std::string> UTCConfig::get_validation_errors() const {
+    return validation_errors_;
+}
+
+bool UTCConfig::validate_network_config() const {
+    bool valid = true;
+    
+    if (listen_port_ < 1 || listen_port_ > 65535) {
+        validation_errors_.push_back("Invalid listen_port: must be between 1 and 65535");
+        valid = false;
+    }
+    
+    if (max_connections_ < 1 || max_connections_ > 100000) {
+        validation_errors_.push_back("Invalid max_connections: must be between 1 and 100000");
+        valid = false;
+    }
+    
+    if (listen_address_.empty()) {
+        validation_errors_.push_back("listen_address cannot be empty");
+        valid = false;
+    }
+    
+    return valid;
+}
+
+bool UTCConfig::validate_server_config() const {
+    bool valid = true;
+    
+    if (stratum_ < 1 || stratum_ > 15) {
+        validation_errors_.push_back("Invalid stratum: must be between 1 and 15");
+        valid = false;
+    }
+    
+    if (sync_interval_ < 1 || sync_interval_ > 65535) {
+        validation_errors_.push_back("Invalid sync_interval: must be between 1 and 65535");
+        valid = false;
+    }
+    
+    if (timeout_ < 1 || timeout_ > 60000) {
+        validation_errors_.push_back("Invalid timeout: must be between 1 and 60000 ms");
+        valid = false;
+    }
+    
+    return valid;
+}
+
+bool UTCConfig::validate_logging_config() const {
+    bool valid = true;
+    
+    std::vector<std::string> valid_levels = {"DEBUG", "INFO", "WARN", "ERROR"};
+    std::string upper_level = log_level_;
+    std::transform(upper_level.begin(), upper_level.end(), upper_level.begin(), ::toupper);
+    
+    if (std::find(valid_levels.begin(), valid_levels.end(), upper_level) == valid_levels.end()) {
+        validation_errors_.push_back("Invalid log_level: must be DEBUG, INFO, WARN, or ERROR");
+        valid = false;
+    }
+    
+    return valid;
+}
+
+bool UTCConfig::validate_security_config() const {
+    bool valid = true;
+    
+    if (enable_authentication_ && authentication_key_.empty()) {
+        validation_errors_.push_back("authentication_key is required when authentication is enabled");
+        valid = false;
+    }
+    
+    return valid;
+}
+
+bool UTCConfig::validate_performance_config() const {
+    bool valid = true;
+    
+    if (worker_threads_ < 1 || worker_threads_ > 128) {
+        validation_errors_.push_back("Invalid worker_threads: must be between 1 and 128");
+        valid = false;
+    }
+    
+    if (max_packet_size_ < 4 || max_packet_size_ > 65535) {
+        validation_errors_.push_back("Invalid max_packet_size: must be between 4 and 65535");
+        valid = false;
+    }
+    
+    if (stats_interval_ < 1 || stats_interval_ > 3600) {
+        validation_errors_.push_back("Invalid stats_interval: must be between 1 and 3600 seconds");
+        valid = false;
+    }
+    
+    return valid;
+}
+
+void UTCConfig::enable_file_watching(bool enable) {
+    file_watching_enabled_ = enable;
+}
+
+bool UTCConfig::check_config_file_changed() const {
+    if (!file_watching_enabled_ || config_file_path_.empty()) {
+        return false;
+    }
+    
+    // Check file modification time (periodic polling - full implementation would use inotify/kqueue)
+    auto now = std::chrono::system_clock::now();
+    auto time_since_check = std::chrono::duration_cast<std::chrono::seconds>(now - last_file_check_).count();
+    
+    // Check every 5 seconds
+    if (time_since_check < 5) {
+        return false;
+    }
+    
+    // Check file modification time using stat
+    struct stat file_stat;
+    if (stat(config_file_path_.c_str(), &file_stat) != 0) {
+        // File doesn't exist or can't be accessed
+        return false;
+    }
+    
+    // Convert file mtime to system_clock time_point
+    auto file_mtime = std::chrono::system_clock::from_time_t(file_stat.st_mtime);
+    
+    // Update last check time
+    const_cast<UTCConfig*>(this)->last_file_check_ = now;
+    
+    // Compare with last known modification time
+    // For simplicity, we'll check if mtime is newer than last check minus a small buffer
+    // In a full implementation, we'd store the last known mtime
+    static std::chrono::system_clock::time_point last_known_mtime;
+    static bool first_check = true;
+    
+    if (first_check) {
+        last_known_mtime = file_mtime;
+        first_check = false;
+        return false;
+    }
+    
+    if (file_mtime > last_known_mtime) {
+        last_known_mtime = file_mtime;
+        return true;
+    }
+    
+    return false;
 }
 
 } // namespace simple_utcd
