@@ -1,0 +1,51 @@
+# Simple UTC Daemon - Rate Limiting & DDoS Protection Configuration Example (YAML format)
+# Version 0.3.0 - Rate Limiting and DDoS Protection Features
+
+network:
+  listen_address: "0.0.0.0"
+  listen_port: 37
+  enable_ipv6: true
+  max_connections: 1000
+
+server:
+  stratum: 2
+  sync_interval: 64
+  timeout: 2000
+  reference_servers:
+    - "time.nist.gov"
+    - "time.google.com"
+
+logging:
+  log_file: "/var/log/simple-utcd/simple-utcd.log"
+  log_level: "INFO"
+  enable_console_logging: false
+  enable_syslog: true
+
+security:
+  rate_limiting:
+    enabled: true
+    requests_per_second: 100      # Per-client rate limit
+    burst_size: 20                 # Maximum burst allowed
+    window_seconds: 60             # Time window for rate calculation
+    global_rate_limit:
+      enabled: true
+      requests_per_second: 1000    # Global rate limit
+      burst_size: 200
+    connection_limiting:
+      enabled: true
+      max_connections_per_ip: 10    # Max concurrent connections per IP
+      window_seconds: 60
+
+  ddos_protection:
+    enabled: true
+    threshold: 1000                # Requests/second to trigger protection
+    block_duration_seconds: 3600    # How long to block detected attacks
+    connection_limit: 10           # Max connections per IP
+    connection_window_seconds: 60  # Window for connection rate calculation
+    anomaly_threshold: 3.0          # Standard deviations for anomaly detection
+
+performance:
+  worker_threads: 4
+  enable_statistics: true
+  stats_interval: 300
+

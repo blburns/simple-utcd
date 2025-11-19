@@ -1,0 +1,42 @@
+{
+  "network": {
+    "listen_address": "0.0.0.0",
+    "listen_port": 37,
+    "enable_ipv6": true,
+    "max_connections": 1000
+  },
+  "server": {
+    "stratum": 2,
+    "sync_interval": 64,
+    "timeout": 2000,
+    "reference_servers": [
+      "time.nist.gov",
+      "time.google.com"
+    ]
+  },
+  "logging": {
+    "log_file": "/var/log/simple-utcd/simple-utcd.log",
+    "log_level": "INFO",
+    "enable_console_logging": false,
+    "enable_syslog": true
+  },
+  "security": {
+    "enable_authentication": true,
+    "authentication_key": "${SIMPLE_UTCD_AUTH_KEY}",
+    "authentication_algorithm": "SHA256",
+    "authentication_timeout": 10000,
+    "session_timeout": 3600,
+    "max_failed_attempts": 3,
+    "lockout_duration": 300,
+    "authentication_keys": {
+      "key1": "${AUTH_KEY_1}",
+      "key2": "${AUTH_KEY_2}"
+    }
+  },
+  "performance": {
+    "worker_threads": 4,
+    "enable_statistics": true,
+    "stats_interval": 300
+  }
+}
+

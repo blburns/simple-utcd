@@ -1,0 +1,54 @@
+{
+  "network": {
+    "listen_address": "0.0.0.0",
+    "listen_port": 37,
+    "enable_ipv6": true,
+    "max_connections": 1000
+  },
+  "server": {
+    "stratum": 2,
+    "sync_interval": 64,
+    "timeout": 2000,
+    "reference_servers": [
+      "time.nist.gov",
+      "time.google.com"
+    ]
+  },
+  "logging": {
+    "log_file": "/var/log/simple-utcd/simple-utcd.log",
+    "log_level": "INFO",
+    "enable_console_logging": false,
+    "enable_syslog": true
+  },
+  "security": {
+    "enable_authentication": false,
+    "acl_default_action": "ALLOW",
+    "allowed_clients": [
+      "192.168.1.0/24",
+      "10.0.0.0/8",
+      "172.16.0.0/12"
+    ],
+    "denied_clients": [
+      "192.168.1.100",
+      "10.0.0.50"
+    ],
+    "acl_rules": [
+      {
+        "action": "ALLOW",
+        "network": "192.168.1.0/24",
+        "description": "Allow local network"
+      },
+      {
+        "action": "DENY",
+        "network": "192.168.1.100",
+        "description": "Deny specific problematic IP"
+      }
+    ]
+  },
+  "performance": {
+    "worker_threads": 4,
+    "enable_statistics": true,
+    "stats_interval": 300
+  }
+}
+

@@ -1,0 +1,55 @@
+{
+  "network": {
+    "listen_address": "0.0.0.0",
+    "listen_port": 37,
+    "enable_ipv6": true,
+    "max_connections": 1000
+  },
+  "server": {
+    "stratum": 2,
+    "sync_interval": 64,
+    "timeout": 2000,
+    "reference_servers": [
+      "time.nist.gov",
+      "time.google.com"
+    ]
+  },
+  "logging": {
+    "log_file": "/var/log/simple-utcd/simple-utcd.log",
+    "log_level": "INFO",
+    "enable_console_logging": false,
+    "enable_syslog": true
+  },
+  "security": {
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_second": 100,
+      "burst_size": 20,
+      "window_seconds": 60,
+      "global_rate_limit": {
+        "enabled": true,
+        "requests_per_second": 1000,
+        "burst_size": 200
+      },
+      "connection_limiting": {
+        "enabled": true,
+        "max_connections_per_ip": 10,
+        "window_seconds": 60
+      }
+    },
+    "ddos_protection": {
+      "enabled": true,
+      "threshold": 1000,
+      "block_duration_seconds": 3600,
+      "connection_limit": 10,
+      "connection_window_seconds": 60,
+      "anomaly_threshold": 3.0
+    }
+  },
+  "performance": {
+    "worker_threads": 4,
+    "enable_statistics": true,
+    "stats_interval": 300
+  }
+}
+
