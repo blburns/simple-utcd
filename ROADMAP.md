@@ -3,8 +3,8 @@
 ## Project Overview
 Simple UTC Daemon (simple-utcd) is a lightweight, secure, and easy-to-configure UTC time coordinate daemon implementation that provides precise Universal Time Coordinate services. This document outlines the development roadmap for future versions and features.
 
-## Version 0.1.0 (Current) - Foundation Release
-**Status: 🚧 In Development**
+## Version 0.1.0 - Foundation Release
+**Status: ✅ Completed**
 - Basic UTC daemon functionality
 - Core UTC packet handling
 - Configuration management
@@ -13,38 +13,43 @@ Simple UTC Daemon (simple-utcd) is a lightweight, secure, and easy-to-configure 
 - Platform support (macOS, Linux, Windows)
 
 ## Version 0.2.0 - Enhanced Features
-**Target: Q2 2024**
-**Status: 📋 Planned**
+**Status: ✅ Completed**
 
 ### Core Improvements
-- [ ] Enhanced UTC packet validation
-- [ ] Improved timestamp precision
-- [ ] Better error handling and recovery
-- [ ] Performance optimizations
-- [ ] Memory usage optimization
+- [x] Enhanced UTC packet validation
+- [x] Improved timestamp precision
+- [x] Better error handling and recovery
+- [x] Performance optimizations
+- [x] Memory usage optimization
 
 ### Configuration Enhancements
-- [ ] Dynamic configuration reloading
-- [ ] Configuration validation improvements
-- [ ] Environment variable support
-- [ ] Configuration templates for common use cases
+- [x] Dynamic configuration reloading
+- [x] Configuration validation improvements
+- [x] Environment variable support
+- [x] Configuration templates for common use cases
+- [x] Multi-format support (INI, JSON, YAML)
 
 ### Monitoring & Observability
-- [ ] Enhanced logging with structured output
-- [ ] Metrics collection (Prometheus format)
-- [ ] Health check endpoints
-- [ ] Performance monitoring
+- [x] Enhanced logging with structured output
+- [x] Metrics collection (Prometheus format)
+- [x] Health check endpoints
+- [x] Performance monitoring
 
-## Version 0.3.0 - Security & Reliability
-**Target: Q3 2024**
+## Version 0.3.0 - Basic Security Features
+**Status: ✅ Completed**
+
+### Security Features (v0.3.0)
+- [x] UTC authentication (MD5, SHA-1, SHA-256)
+- [x] Access control lists (ACL) with CIDR support
+- [x] Rate limiting (per-client and global)
+- [x] DDoS protection with anomaly detection
+- [x] Connection rate limiting
+- [x] Request throttling and burst protection
+- [x] Automatic IP blocking for attacks
+
+## Version 0.3.1 - Reliability & Failover
+**Target: Q1 2024**
 **Status: 📋 Planned**
-
-### Security Features
-- [ ] UTC authentication (MD5, SHA-1, SHA-256)
-- [ ] Access control lists (ACL)
-- [ ] Rate limiting and DDoS protection
-- [ ] Secure time synchronization
-- [ ] Certificate-based authentication
 
 ### Reliability Improvements
 - [ ] Automatic failover to backup servers
@@ -52,6 +57,21 @@ Simple UTC Daemon (simple-utcd) is a lightweight, secure, and easy-to-configure 
 - [ ] Graceful degradation
 - [ ] Backup and restore functionality
 - [ ] Disaster recovery procedures
+
+## Version 0.3.2 - Advanced Security Features
+**Target: Q2 2024**
+**Status: 📋 Planned**
+
+### Advanced Security
+- [ ] Secure time synchronization (TLS/SSL)
+- [ ] Certificate-based authentication
+- [ ] TLS support for time sync
+- [ ] Certificate validation
+- [ ] Client certificate validation (mTLS)
+
+## Version 0.3.3 - Advanced UTC Features
+**Target: Q2 2024**
+**Status: 📋 Planned**
 
 ### Advanced UTC Features
 - [ ] Multiple upstream server support
@@ -149,16 +169,20 @@ Simple UTC Daemon (simple-utcd) is a lightweight, secure, and easy-to-configure 
 ## Development Priorities
 
 ### High Priority (Next 3 months)
-1. Complete basic UTC daemon functionality
-2. Implement core UTC packet handling
-3. Improve configuration management
-4. Enhance logging and monitoring
+1. ✅ Complete basic UTC daemon functionality
+2. ✅ Implement core UTC packet handling
+3. ✅ Improve configuration management
+4. ✅ Enhance logging and monitoring
+5. ✅ Implement basic security features (v0.3.0)
+6. Implement reliability and failover features (v0.3.1)
 
 ### Medium Priority (Next 6 months)
-1. Security hardening
-2. Performance optimization
-3. Enhanced error handling
-4. Better documentation
+1. ✅ Security hardening (v0.3.0 complete)
+2. ✅ Performance optimization
+3. ✅ Enhanced error handling
+4. ✅ Better documentation
+5. Implement advanced security features (v0.3.2)
+6. Implement advanced UTC features (v0.3.3)
 
 ### Low Priority (Next 12 months)
 1. Advanced features

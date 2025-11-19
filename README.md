@@ -6,9 +6,10 @@ A lightweight, high-performance UTC (Universal Time Coordinate) daemon written i
 
 - **High Performance**: Optimized for low-latency time synchronization
 - **Cross-Platform**: Supports macOS, Linux, and Windows
-- **Configurable**: Flexible configuration options
-- **Secure**: Built with security best practices
+- **Configurable**: Flexible configuration options (INI, JSON, YAML formats)
+- **Secure**: Comprehensive security features including authentication, ACLs, rate limiting, and DDoS protection
 - **Containerized**: Full Docker support for development and deployment
+- **Version 0.3.0**: Enhanced security with authentication (MD5/SHA-1/SHA-256), access control lists, rate limiting, and DDoS protection
 
 ## Quick Start
 
@@ -221,6 +222,37 @@ make service-stop
 
 ## Configuration
 
+Simple UTC Daemon supports multiple configuration formats:
+
+- **INI format** (`.conf` files) - Traditional configuration format
+- **JSON format** (`.json` files) - Structured configuration
+- **YAML format** (`.yaml` files) - Human-readable structured format
+
+Configuration files are auto-detected based on file extension.
+
+### Configuration Examples
+
+```bash
+# Basic configuration
+config/examples/simple/simple-utcd.conf.example
+config/examples/simple/simple-utcd.json
+config/examples/simple/simple-utcd.yaml
+
+# Security configurations (v0.3.0)
+config/examples/security/authentication.conf
+config/examples/security/acl.conf
+config/examples/security/rate-limiting.conf
+
+# Production configurations
+config/examples/production/enterprise.conf
+config/examples/production/cloud.conf
+
+# Advanced configurations
+config/examples/advanced/high-security.conf
+config/examples/advanced/high-performance.conf
+config/examples/advanced/load-balanced.conf
+```
+
 ### Installation
 
 ```bash
@@ -234,9 +266,69 @@ make config-backup
 make log-rotate
 ```
 
+### Environment Variables
+
+Configuration values can be overridden using environment variables:
+
+```bash
+# Authentication key
+export SIMPLE_UTCD_AUTH_KEY="your-secret-key"
+
+# Other configuration overrides
+export SIMPLE_UTCD_LISTEN_PORT=37
+export SIMPLE_UTCD_LOG_LEVEL=INFO
+```
+
 ## Security
 
-The project includes comprehensive security scanning:
+Simple UTC Daemon includes comprehensive security features (Version 0.3.0):
+
+### Authentication
+- **Multiple Algorithms**: MD5, SHA-1, and SHA-256 authentication
+- **Key Management**: Secure key storage and rotation support
+- **Session Management**: Configurable session timeouts
+- **Lockout Protection**: Automatic lockout after failed attempts
+
+### Access Control Lists (ACL)
+- **IP-based Restrictions**: Allow or deny specific IP addresses
+- **CIDR Support**: Network-based restrictions using CIDR notation
+- **Rule-based ACL**: Flexible rule configuration with priorities
+- **Default Actions**: Configurable default allow/deny behavior
+
+### Rate Limiting
+- **Per-Client Limits**: Token bucket algorithm for per-client rate limiting
+- **Global Limits**: System-wide rate limiting protection
+- **Connection Limiting**: Maximum concurrent connections per IP
+- **Burst Protection**: Configurable burst size and window
+
+### DDoS Protection
+- **Anomaly Detection**: Statistical analysis of traffic patterns
+- **Automatic Blocking**: IP blocking for detected attacks
+- **Connection Rate Limiting**: Per-IP connection limits
+- **Request Throttling**: Automatic throttling of suspicious traffic
+
+### Configuration Examples
+
+Security configuration examples are available in multiple formats:
+
+```bash
+# Authentication examples
+config/examples/security/authentication.conf    # INI format
+config/examples/security/authentication.json    # JSON format
+config/examples/security/authentication.yaml   # YAML format
+
+# ACL examples
+config/examples/security/acl.conf
+config/examples/security/acl.json
+config/examples/security/acl.yaml
+
+# Rate limiting and DDoS protection examples
+config/examples/security/rate-limiting.conf
+config/examples/security/rate-limiting.json
+config/examples/security/rate-limiting.yaml
+```
+
+### Security Tools
 
 ```bash
 # Run security scan
