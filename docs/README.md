@@ -26,6 +26,9 @@ Welcome to the Simple UTC Daemon documentation. This comprehensive guide will he
 - **[Troubleshooting Guide](troubleshooting/README.md)** - Common issues and solutions
 - **[Support](support/README.md)** - Getting help and reporting issues
 
+### Architecture
+- **[Architecture Guide](architecture/README.md)** - System architecture, scaling, and design principles
+
 ### Reference
 - **[API Reference](reference/README.md)** - Complete API documentation
 - **[Protocol Reference](reference/README.md)** - UTC protocol implementation details
@@ -43,9 +46,10 @@ Welcome to the Simple UTC Daemon documentation. This comprehensive guide will he
 3. Configure using [Configuration Reference](configuration/README.md)
 
 ### For Developers
-1. Explore [API Reference](reference/README.md)
-2. Review [Configuration Examples](examples/README.md)
-3. Check [Troubleshooting Guide](troubleshooting/README.md)
+1. Review [Architecture Guide](architecture/README.md)
+2. Explore [API Reference](reference/README.md)
+3. Review [Configuration Examples](examples/README.md)
+4. Check [Troubleshooting Guide](troubleshooting/README.md)
 
 ## 📖 Key Features
 
