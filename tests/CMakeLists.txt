@@ -21,6 +21,16 @@ set(TEST_SOURCES
     test_utc_packet.cpp
     test_utc_config.cpp
     test_logger.cpp
+    test_auth.cpp
+    test_acl.cpp
+    test_rate_limiter.cpp
+    test_ddos_protection.cpp
+    test_health_check.cpp
+    test_metrics.cpp
+    test_async_io.cpp
+    test_upstream_manager.cpp
+    test_graceful_degradation.cpp
+    test_backup_restore.cpp
     test_main.cpp
 )
 

@@ -95,9 +95,17 @@ public:
      * @brief Handle an error
      * @param context Error context information
      * @param exception Optional exception pointer
+     * @return true if error was handled/recovered, false otherwise
      */
-    virtual void handle_error(const ErrorContext& context,
+    virtual bool handle_error(const ErrorContext& context,
                              const std::exception* exception = nullptr) = 0;
+    
+    /**
+     * @brief Attempt to recover from an error
+     * @param context Error context information
+     * @return true if recovery was successful
+     */
+    virtual bool attempt_recovery(const ErrorContext& context) = 0;
 
     /**
      * @brief Check if error should be logged
@@ -126,8 +134,10 @@ public:
     explicit DefaultErrorHandler(bool enable_logging = true,
                                 ErrorSeverity min_log_level = ErrorSeverity::WARNING);
 
-    void handle_error(const ErrorContext& context,
+    bool handle_error(const ErrorContext& context,
                      const std::exception* exception = nullptr) override;
+    
+    bool attempt_recovery(const ErrorContext& context) override;
 
     bool should_log(ErrorSeverity severity) const override;
 

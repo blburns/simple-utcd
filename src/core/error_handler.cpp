@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <algorithm>
 
 namespace simple_utcd {
 
@@ -53,7 +54,7 @@ DefaultErrorHandler::DefaultErrorHandler(bool enable_logging, ErrorSeverity min_
 {
 }
 
-void DefaultErrorHandler::handle_error(const ErrorContext& context, const std::exception* exception) {
+bool DefaultErrorHandler::handle_error(const ErrorContext& context, const std::exception* exception) {
     // Update error statistics
     if (static_cast<int>(context.severity) < static_cast<int>(ErrorSeverity::CRITICAL) + 1) {
         error_counts_[static_cast<int>(context.severity)]++;
@@ -70,6 +71,56 @@ void DefaultErrorHandler::handle_error(const ErrorContext& context, const std::e
                   << " in " << context.component << "::" << context.function
                   << " at " << context.file << ":" << context.line << std::endl;
     }
+    
+    // Attempt recovery for non-critical errors
+    if (context.severity != ErrorSeverity::CRITICAL) {
+        return attempt_recovery(context);
+    }
+    
+    return false; // Critical errors cannot be recovered
+}
+
+bool DefaultErrorHandler::attempt_recovery(const ErrorContext& context) {
+    // Recovery strategies based on component and error type
+    std::string component_lower = context.component;
+    std::transform(component_lower.begin(), component_lower.end(), component_lower.begin(), ::tolower);
+    
+    // Network errors: can retry connection
+    if (component_lower.find("network") != std::string::npos || 
+        component_lower.find("connection") != std::string::npos) {
+        // Network errors are often recoverable
+        if (context.severity == ErrorSeverity::ERROR || context.severity == ErrorSeverity::WARNING) {
+            // Log recovery attempt
+            if (logging_enabled_) {
+                std::cout << "[RECOVERY] Attempting to recover from network error in " 
+                         << context.component << std::endl;
+            }
+            return true; // Indicate recovery attempt
+        }
+    }
+    
+    // Configuration errors: can reload config
+    if (component_lower.find("config") != std::string::npos) {
+        if (context.severity == ErrorSeverity::WARNING) {
+            if (logging_enabled_) {
+                std::cout << "[RECOVERY] Configuration error may be recoverable" << std::endl;
+            }
+            return true;
+        }
+    }
+    
+    // Packet errors: can skip invalid packet
+    if (component_lower.find("packet") != std::string::npos) {
+        if (context.severity == ErrorSeverity::ERROR || context.severity == ErrorSeverity::WARNING) {
+            if (logging_enabled_) {
+                std::cout << "[RECOVERY] Skipping invalid packet, continuing operation" << std::endl;
+            }
+            return true; // Can continue with next packet
+        }
+    }
+    
+    // Default: no recovery for unknown errors
+    return false;
 }
 
 bool DefaultErrorHandler::should_log(ErrorSeverity severity) const {
@@ -110,6 +161,28 @@ void DefaultErrorHandler::log_error(const ErrorContext& context, const std::exce
 
     if (exception) {
         ss << " - Exception: " << exception->what();
+        
+        // Add more detailed exception information
+        try {
+            const auto* network_err = dynamic_cast<const NetworkError*>(exception);
+            if (network_err) {
+                ss << " [NetworkError]";
+            }
+            const auto* config_err = dynamic_cast<const ConfigurationError*>(exception);
+            if (config_err) {
+                ss << " [ConfigurationError]";
+            }
+            const auto* packet_err = dynamic_cast<const PacketError*>(exception);
+            if (packet_err) {
+                ss << " [PacketError]";
+            }
+            const auto* system_err = dynamic_cast<const SystemError*>(exception);
+            if (system_err) {
+                ss << " [SystemError]";
+            }
+        } catch (...) {
+            // Ignore dynamic_cast failures
+        }
     }
 
     // For now, output to console. In a full implementation, this would

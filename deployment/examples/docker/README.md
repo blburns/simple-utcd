@@ -1,219 +1,136 @@
-# Docker Deployment Guide
+# simple-utcd Docker Deployment
 
-This guide covers deploying simple-utcd using Docker containers.
+This directory contains Docker deployment examples for simple-utcd.
 
 ## Quick Start
 
-### 1. Clone the Repository
+1. **Build the Docker image:**
+   ```bash
+   docker build -t simple-utcd:latest .
+   ```
 
-```bash
-git clone <repository-url>
-cd simple-utcd
-```
+2. **Run with Docker Compose:**
+   ```bash
+   docker-compose up -d
+   ```
 
-### 2. Create Configuration Directory
-
-```bash
-mkdir -p deployment/examples/docker/config
-mkdir -p deployment/examples/docker/logs
-cp config/examples/simple/simple-utcd.conf.example deployment/examples/docker/config/simple-utcd.conf
-```
-
-### 3. Build and Run
-
-```bash
-cd deployment/examples/docker
-docker-compose up -d
-```
-
-### 4. Verify Deployment
-
-```bash
-# Check container status
-docker-compose ps
-
-# Check logs
-docker-compose logs -f simple-utcd
-
-# Test UTC service
-nc -z localhost 37
-```
+3. **Check status:**
+   ```bash
+   docker-compose ps
+   docker-compose logs simple-utcd
+   ```
 
 ## Configuration
 
 ### Environment Variables
 
-The following environment variables can be set in the docker-compose.yml:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIMPLE-UTCD_CONFIG` | `/etc/simple-utcd/simple-utcd.conf` | Configuration file path |
+| `SIMPLE-UTCD_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
+| `SIMPLE-UTCD_BIND_ADDRESS` | `0.0.0.0` | Bind address |
+| `SIMPLE-UTCD_BIND_PORT` | `8080` | Bind port |
 
-- `SIMPLE_UTCD_LISTEN_ADDRESS`: Bind address (default: 0.0.0.0)
-- `SIMPLE_UTCD_LISTEN_PORT`: Bind port (default: 37)
-- `SIMPLE_UTCD_LOG_LEVEL`: Log level (default: INFO)
+### Volumes
 
-### Volume Mounts
+| Volume | Description |
+|--------|-------------|
+| `./config:/etc/simple-utcd:ro` | Configuration files (read-only) |
+| `./data:/var/lib/simple-utcd` | Data directory |
+| `./logs:/var/log/simple-utcd` | Log files |
 
-- `./config:/etc/simple-utcd:ro`: Configuration files (read-only)
-- `./logs:/var/log/simple-utcd`: Log files
-
-## Production Deployment
-
-### 1. Create Production Configuration
-
-```bash
-# Copy production config
-cp config/examples/production/enterprise.conf deployment/examples/docker/config/simple-utcd.conf
-
-# Edit configuration
-nano deployment/examples/docker/config/simple-utcd.conf
-```
-
-### 2. Set Resource Limits
-
-```yaml
-services:
-  simple-utcd:
-    # ... existing configuration ...
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-```
-
-### 3. Enable Logging Driver
-
-```yaml
-services:
-  simple-utcd:
-    # ... existing configuration ...
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-```
-
-## Monitoring
-
-### Health Checks
-
-The container includes a health check that verifies UTC service availability:
+## Docker Compose Commands
 
 ```bash
-# Check health status
-docker inspect --format='{{.State.Health.Status}}' simple-utcd
-```
+# Start services
+docker-compose up -d
 
-### Log Monitoring
+# Stop services
+docker-compose down
 
-```bash
-# Follow logs in real-time
+# View logs
 docker-compose logs -f simple-utcd
 
-# Search logs for errors
-docker-compose logs simple-utcd | grep ERROR
+# Restart service
+docker-compose restart simple-utcd
 
-# Export logs
-docker-compose logs simple-utcd > utc-logs.txt
+# Update and restart
+docker-compose pull
+docker-compose up -d
+
+# Remove everything
+docker-compose down -v
 ```
 
-## Troubleshooting
+## Health Checks
 
-### Common Issues
+The container includes health checks that verify the service is responding:
 
-1. **Port Already in Use**
-   ```bash
-   # Check what's using port 37
-   sudo lsof -i :37
+- **Check command:** `nc -z localhost 8080`
+- **Interval:** 30 seconds
+- **Timeout:** 10 seconds
+- **Retries:** 3
+- **Start period:** 40 seconds
 
-   # Stop conflicting service
-   sudo systemctl stop time
-   ```
+## Networking
 
-2. **Permission Issues**
-   ```bash
-   # Fix log directory permissions
-   sudo chown -R 1000:1000 deployment/examples/docker/logs
-   ```
-
-3. **Configuration Errors**
-   ```bash
-   # Validate configuration
-   docker-compose exec simple-utcd simple-utcd --test-config
-   ```
-
-### Debug Mode
-
-```bash
-# Run with debug logging
-docker-compose run --rm simple-utcd simple-utcd --verbose --foreground
-```
-
-## Scaling
-
-### Multiple Instances
-
-```yaml
-services:
-  simple-utcd:
-    # ... existing configuration ...
-    deploy:
-      replicas: 3
-      endpoint_mode: dnsrr
-```
-
-### Load Balancing
-
-Use an external load balancer (HAProxy, nginx) to distribute UTC requests across multiple containers.
+The service uses a custom bridge network (`simple-utcd-network`) with subnet `172.22.0.0/16`.
 
 ## Security Considerations
 
-- The container runs as a non-root user
-- Configuration files are mounted as read-only
-- Only TCP port 37 is exposed
-- Network isolation using custom bridge network
+1. **Run as non-root user** (configured in Dockerfile)
+2. **Read-only configuration** volume
+3. **Network isolation** with custom bridge
+4. **Resource limits** (configure as needed)
 
-## Backup and Recovery
+## Troubleshooting
 
-### Backup Configuration
-
+### Container won't start
 ```bash
-# Backup configuration
-docker cp simple-utcd:/etc/simple-utcd/simple-utcd.conf ./backup/
+# Check logs
+docker-compose logs simple-utcd
+
+# Check configuration
+docker-compose exec simple-utcd cat /etc/simple-utcd/simple-utcd.conf
 ```
 
-### Restore Configuration
-
+### Port conflicts
 ```bash
-# Restore configuration
-docker cp ./backup/simple-utcd.conf simple-utcd:/etc/simple-utcd/
-docker-compose restart simple-utcd
+# Check what's using the port
+netstat -tlnp | grep 8080
+
+# Change port in docker-compose.yml
+ports:
+  - "8080:8080/tcp"
 ```
 
-## Performance Tuning
-
-### Container Optimization
-
-```yaml
-services:
-  simple-utcd:
-    # ... existing configuration ...
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    sysctls:
-      - net.core.rmem_max=26214400
-      - net.core.wmem_max=26214400
+### Permission issues
+```bash
+# Fix volume permissions
+sudo chown -R 1000:1000 ./data ./logs
 ```
 
-### Host System Tuning
+## Production Deployment
 
+For production deployments, consider:
+
+1. **Use specific image tags** instead of `latest`
+2. **Set resource limits** in docker-compose.yml
+3. **Configure log rotation** for log volumes
+4. **Use secrets management** for sensitive configuration
+5. **Set up monitoring** and alerting
+6. **Configure backup** for data volumes
+
+## Examples
+
+### Development
 ```bash
-# Increase TCP buffer sizes
-echo 'net.core.rmem_max=26214400' >> /etc/sysctl.conf
-echo 'net.core.wmem_max=26214400' >> /etc/sysctl.conf
-sysctl -p
+# Override configuration for development
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+### Production
+```bash
+# Use production configuration
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```

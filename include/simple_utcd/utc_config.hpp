@@ -27,6 +27,8 @@ namespace simple_utcd {
 class UTCConfig {
 public:
     UTCConfig();
+    UTCConfig(const UTCConfig& other);
+    UTCConfig& operator=(const UTCConfig& other);
     ~UTCConfig();
 
     bool load(const std::string& config_file);
@@ -41,6 +43,21 @@ public:
     };
     bool load(const std::string& config_file, ConfigFormat format);
     static ConfigFormat detect_format(const std::string& config_file);
+    
+    // Environment variable support
+    void load_from_environment();
+    static std::string get_env_var(const std::string& name, const std::string& default_value = "");
+    
+    // Configuration validation
+    bool validate() const;
+    std::vector<std::string> get_validation_errors() const;
+    
+    // Configuration file watching
+    void enable_file_watching(bool enable);
+    bool is_file_watching_enabled() const { return file_watching_enabled_; }
+    std::string get_config_file_path() const { return config_file_path_; }
+    void set_config_file_path(const std::string& path) { config_file_path_ = path; }
+    bool check_config_file_changed() const;
 
     // Network Configuration
     const std::string& get_listen_address() const { return listen_address_; }
@@ -147,6 +164,20 @@ private:
     bool load_yaml(const std::string& config_file);
     bool load_json(const std::string& config_file);
     bool set_value(const std::string& key, const std::string& value);
+    
+    // Validation helpers
+    bool validate_network_config() const;
+    bool validate_server_config() const;
+    bool validate_logging_config() const;
+    bool validate_security_config() const;
+    bool validate_performance_config() const;
+    
+    mutable std::vector<std::string> validation_errors_;
+    
+    // File watching
+    bool file_watching_enabled_;
+    std::string config_file_path_;
+    std::chrono::system_clock::time_point last_file_check_;
 };
 
 } // namespace simple_utcd

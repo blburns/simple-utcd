@@ -26,11 +26,13 @@
 
 namespace simple_utcd {
 
-UTCPacket::UTCPacket() : timestamp_(0), version_(1), mode_(3) {
-    timestamp_ = get_current_utc_timestamp();
+UTCPacket::UTCPacket() : timestamp_(0), timestamp_microseconds_(0), version_(1), mode_(3) {
+    auto time_pair = get_current_utc_timestamp_with_microseconds();
+    timestamp_ = time_pair.first;
+    timestamp_microseconds_ = time_pair.second;
 }
 
-UTCPacket::UTCPacket(uint32_t timestamp) : timestamp_(timestamp), version_(1), mode_(3) {
+UTCPacket::UTCPacket(uint32_t timestamp) : timestamp_(timestamp), timestamp_microseconds_(0), version_(1), mode_(3) {
 }
 
 UTCPacket::~UTCPacket() {
@@ -103,6 +105,19 @@ uint32_t UTCPacket::get_current_utc_timestamp() {
     return static_cast<uint32_t>(time_t);
 }
 
+std::pair<uint32_t, uint32_t> UTCPacket::get_current_utc_timestamp_with_microseconds() {
+    auto now = std::chrono::system_clock::now();
+    auto time_t = std::chrono::system_clock::to_time_t(now);
+    auto timestamp_sec = static_cast<uint32_t>(time_t);
+    
+    // Get microseconds
+    auto duration = now.time_since_epoch();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration - seconds);
+    
+    return std::make_pair(timestamp_sec, static_cast<uint32_t>(microseconds.count() % 1000000));
+}
+
 std::string UTCPacket::timestamp_to_string(uint32_t timestamp) {
     std::time_t time_t = static_cast<std::time_t>(timestamp);
     std::tm* tm = std::gmtime(&time_t);
@@ -113,6 +128,21 @@ std::string UTCPacket::timestamp_to_string(uint32_t timestamp) {
 
     std::stringstream ss;
     ss << std::put_time(tm, "%Y-%m-%d %H:%M:%S UTC");
+    return ss.str();
+}
+
+std::string UTCPacket::timestamp_to_string_with_microseconds(uint32_t timestamp, uint32_t microseconds) {
+    std::time_t time_t = static_cast<std::time_t>(timestamp);
+    std::tm* tm = std::gmtime(&time_t);
+
+    if (!tm) {
+        return "Invalid timestamp";
+    }
+
+    std::stringstream ss;
+    ss << std::put_time(tm, "%Y-%m-%d %H:%M:%S");
+    ss << "." << std::setfill('0') << std::setw(6) << microseconds;
+    ss << " UTC";
     return ss.str();
 }
 
@@ -225,6 +255,55 @@ bool UTCPacket::validate_mode(uint8_t mode) const {
     // Valid modes: 0-7 (3 bits)
     // Mode 3 = client request, Mode 4 = server response
     return mode <= 7;
+}
+
+bool UTCPacket::validate_microseconds(uint32_t microseconds) const {
+    // Microseconds must be in range 0-999999
+    return microseconds <= 999999;
+}
+
+bool UTCPacket::is_leap_second(uint32_t timestamp) {
+    // Leap seconds are inserted at the end of June 30 or December 31
+    // This is a simplified check - full implementation would use IERS data
+    std::time_t time_t = static_cast<std::time_t>(timestamp);
+    std::tm* tm = std::gmtime(&time_t);
+    
+    if (!tm) {
+        return false;
+    }
+    
+    // Check if it's June 30 23:59:60 or December 31 23:59:60
+    // Note: This is a basic check. Real implementation needs IERS leap second table
+    bool is_june_30 = (tm->tm_mon == 5 && tm->tm_mday == 30 && tm->tm_hour == 23 && 
+                       tm->tm_min == 59 && tm->tm_sec == 60);
+    bool is_dec_31 = (tm->tm_mon == 11 && tm->tm_mday == 31 && tm->tm_hour == 23 && 
+                      tm->tm_min == 59 && tm->tm_sec == 60);
+    
+    return is_june_30 || is_dec_31;
+}
+
+int UTCPacket::get_leap_second_offset(uint32_t timestamp) {
+    // Get the cumulative leap second offset for a given timestamp
+    // This is a simplified implementation - full version would use IERS data
+    
+    // Known leap seconds (simplified list - should be updated from IERS)
+    // Format: (timestamp, offset)
+    // This is a placeholder - real implementation needs full IERS table
+    static const std::vector<std::pair<uint32_t, int>> leap_seconds = {
+        // Add known leap second dates here
+        // Example: {946684800, 1}, // 2000-01-01
+    };
+    
+    int offset = 0;
+    for (const auto& leap : leap_seconds) {
+        if (timestamp >= leap.first) {
+            offset = leap.second;
+        } else {
+            break;
+        }
+    }
+    
+    return offset;
 }
 
 } // namespace simple_utcd

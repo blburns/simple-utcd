@@ -1,0 +1,17 @@
+[Unit]
+Description=Simple UTC Daemon - A lightweight and secure UTC time coordinate daemon
+After=network.target
+
+[Service]
+Type=simple
+User=simple-utcd
+Group=simple-utcd
+ExecStart=/usr/local/bin/simple-utcd
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=simple-utcd
+
+[Install]
+WantedBy=multi-user.target

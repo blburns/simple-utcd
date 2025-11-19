@@ -25,6 +25,9 @@
 #include <mutex>
 #include "utc_config.hpp"
 #include "logger.hpp"
+#include "metrics.hpp"
+#include "health_check.hpp"
+#include "async_io.hpp"
 
 namespace simple_utcd {
 
@@ -45,10 +48,17 @@ public:
     int get_total_connections() const { return total_connections_; }
     int get_packets_sent() const { return packets_sent_; }
     int get_packets_received() const { return packets_received_; }
+    
+    // Metrics and health
+    class PerformanceMetrics* get_performance_metrics() const { return performance_metrics_.get(); }
+    class HealthChecker* get_health_checker() const { return health_checker_.get(); }
 
     // Configuration access
     UTCConfig* get_config() const { return config_; }
     Logger* get_logger() const { return logger_; }
+    
+    // Dynamic configuration reloading
+    bool reload_config(const std::string& config_file);
 
 private:
     UTCConfig* config_;
@@ -67,6 +77,13 @@ private:
 
     // Server socket
     int server_socket_;
+    
+    // Metrics and health checking
+    std::unique_ptr<PerformanceMetrics> performance_metrics_;
+    std::unique_ptr<HealthChecker> health_checker_;
+    
+    // Async I/O support
+    std::unique_ptr<AsyncIOManager> async_io_manager_;
 
     void accept_connections();
     void handle_connection(std::unique_ptr<UTCConnection> connection);

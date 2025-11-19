@@ -1,0 +1,14 @@
+/var/log/simple-utcd/*.log {
+    daily
+    missingok
+    rotate 52
+    compress
+    delaycompress
+    notifempty
+    create 644 _simple-utcd _simple-utcd
+    postrotate
+        /bin/systemctl reload simple-utcd > /dev/null 2>&1 || true
+    endscript
+    sharedscripts
+    su _simple-utcd _simple-utcd
+}

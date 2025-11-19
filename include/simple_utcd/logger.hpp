@@ -44,6 +44,13 @@ public:
     void enable_syslog(bool enable);
     void set_json_format(bool enable);
     bool is_json_format() const { return json_format_; }
+    
+    // Log rotation
+    void set_max_log_size(size_t max_size_bytes);
+    void set_max_log_files(size_t max_files);
+    void enable_log_rotation(bool enable);
+    bool should_rotate_log() const;
+    void rotate_log();
 
     void debug(const std::string& message);
     void info(const std::string& message);
@@ -77,6 +84,10 @@ private:
     bool console_enabled_;
     bool syslog_enabled_;
     bool json_format_;
+    bool log_rotation_enabled_;
+    size_t max_log_size_bytes_;
+    size_t max_log_files_;
+    size_t current_log_size_;
     std::mutex log_mutex_;
 
     void log(LogLevel level, const std::string& message);

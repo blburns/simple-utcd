@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.simpledaemons.simple-utcd</string>
+    <string>com.simple-utcd.simple-utcd</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/simple-utcd</string>

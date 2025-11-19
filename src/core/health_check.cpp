@@ -92,17 +92,107 @@ HealthCheckResult HealthChecker::check_utc_health() const {
 HealthCheckResult HealthChecker::check_dependencies() const {
     HealthCheckResult result;
     
-    // Basic dependency checks
-    // In a full implementation, this would check:
-    // - Network connectivity
-    // - Upstream time servers
-    // - System resources
+    std::lock_guard<std::mutex> lock(dependencies_mutex_);
     
-    result.status = HealthStatus::HEALTHY;
-    result.message = "All dependencies operational";
+    if (dependencies_.empty()) {
+        result.status = HealthStatus::HEALTHY;
+        result.message = "No dependencies registered";
+        result.timestamp = std::chrono::system_clock::now();
+        return result;
+    }
+    
+    // Check all dependencies
+    bool has_degraded = false;
+    bool has_unhealthy = false;
+    
+    for (const auto& pair : dependencies_) {
+        const auto& dep = pair.second;
+        result.details[dep.name] = status_to_string(dep.status);
+        
+        if (dep.status == HealthStatus::UNHEALTHY) {
+            has_unhealthy = true;
+        } else if (dep.status == HealthStatus::DEGRADED) {
+            has_degraded = true;
+        }
+    }
+    
+    if (has_unhealthy) {
+        result.status = HealthStatus::UNHEALTHY;
+        result.message = "Some dependencies are unhealthy";
+    } else if (has_degraded) {
+        result.status = HealthStatus::DEGRADED;
+        result.message = "Some dependencies are degraded";
+    } else {
+        result.status = HealthStatus::HEALTHY;
+        result.message = "All dependencies operational";
+    }
+    
     result.timestamp = std::chrono::system_clock::now();
+    return result;
+}
+
+void HealthChecker::register_dependency(const std::string& name, bool required) {
+    std::lock_guard<std::mutex> lock(dependencies_mutex_);
+    dependencies_[name] = DependencyInfo(name, required);
+}
+
+void HealthChecker::unregister_dependency(const std::string& name) {
+    std::lock_guard<std::mutex> lock(dependencies_mutex_);
+    dependencies_.erase(name);
+}
+
+void HealthChecker::update_dependency_status(const std::string& name, HealthStatus status, const std::string& message) {
+    std::lock_guard<std::mutex> lock(dependencies_mutex_);
+    auto it = dependencies_.find(name);
+    if (it != dependencies_.end()) {
+        it->second.status = status;
+        it->second.message = message;
+        it->second.last_update = std::chrono::system_clock::now();
+    }
+}
+
+HealthCheckResult HealthChecker::check_dependency(const std::string& name) const {
+    HealthCheckResult result;
+    
+    std::lock_guard<std::mutex> lock(dependencies_mutex_);
+    auto it = dependencies_.find(name);
+    if (it != dependencies_.end()) {
+        result.status = it->second.status;
+        result.message = it->second.message;
+    } else {
+        result.status = HealthStatus::UNHEALTHY;
+        result.message = "Dependency not found";
+    }
+    
+    result.timestamp = std::chrono::system_clock::now();
+    return result;
+}
+
+std::map<std::string, HealthStatus> HealthChecker::get_all_dependency_status() const {
+    std::lock_guard<std::mutex> lock(dependencies_mutex_);
+    std::map<std::string, HealthStatus> result;
+    
+    for (const auto& pair : dependencies_) {
+        result[pair.first] = pair.second.status;
+    }
     
     return result;
+}
+
+HealthStatus HealthChecker::aggregate_health_status() const {
+    HealthCheckResult main_health = check_health();
+    HealthCheckResult deps_health = check_dependencies();
+    
+    // Worst status wins
+    if (main_health.status == HealthStatus::UNHEALTHY || 
+        deps_health.status == HealthStatus::UNHEALTHY) {
+        return HealthStatus::UNHEALTHY;
+    } else if (main_health.status == HealthStatus::DEGRADED ||
+               deps_health.status == HealthStatus::DEGRADED) {
+        return HealthStatus::DEGRADED;
+    }
+    
+    return HealthStatus::HEALTHY;
 }
 
 void HealthChecker::set_status(HealthStatus status, const std::string& message) {
@@ -153,6 +243,9 @@ std::string HealthChecker::export_http() const {
     ss << "HTTP/1.1 ";
     
     switch (result.status) {
+        case HealthStatus::UNKNOWN:
+            ss << "503 Service Unavailable";
+            break;
         case HealthStatus::HEALTHY:
             ss << "200 OK";
             break;

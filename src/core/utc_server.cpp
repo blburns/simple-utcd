@@ -21,9 +21,13 @@
 #include "simple_utcd/utc_packet.hpp"
 #include "simple_utcd/platform.hpp"
 #include "simple_utcd/error_handler.hpp"
+#include "simple_utcd/metrics.hpp"
+#include "simple_utcd/health_check.hpp"
+#include "simple_utcd/async_io.hpp"
 #include <mutex>
 #include <thread>
 #include <chrono>
+#include <algorithm>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -52,13 +56,25 @@ UTCServer::UTCServer(UTCConfig* config, Logger* logger)
     , packets_sent_(0)
     , packets_received_(0)
     , server_socket_(-1)
+    , performance_metrics_(std::make_unique<PerformanceMetrics>())
+    , health_checker_(std::make_unique<HealthChecker>())
+    , async_io_manager_(std::make_unique<AsyncIOManager>(config ? config->get_worker_threads() : 4))
 {
     if (logger_) {
         logger_->info("UTC Server initialized");
     }
+    
+    // Start async I/O manager
+    if (async_io_manager_) {
+        async_io_manager_->start();
+    }
 }
 
 UTCServer::~UTCServer() {
+    // Stop async I/O manager
+    if (async_io_manager_) {
+        async_io_manager_->stop();
+    }
     stop();
 }
 
@@ -174,6 +190,12 @@ void UTCServer::accept_connections() {
 
         active_connections_++;
         total_connections_++;
+        
+        // Update metrics
+        if (performance_metrics_) {
+            performance_metrics_->update_total_connections(total_connections_.load());
+            performance_metrics_->update_active_connections(active_connections_.load());
+        }
 
         if (logger_) {
             logger_->debug("Accepted connection from {} (active: {})",
@@ -187,17 +209,32 @@ void UTCServer::handle_connection(std::unique_ptr<UTCConnection> connection) {
         return;
     }
 
+    auto start_time = std::chrono::steady_clock::now();
+    if (performance_metrics_) {
+        performance_metrics_->record_request();
+    }
+
     // Send current UTC time to client
     UTCPacket packet(get_utc_timestamp());
 
     if (connection->send_packet(packet)) {
         packets_sent_++;
+        
+        // Record response time
+        if (performance_metrics_) {
+            auto end_time = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+            performance_metrics_->record_response(static_cast<uint64_t>(duration.count()));
+        }
 
         if (logger_) {
             logger_->debug("Sent UTC time to {}: {}",
                           connection->get_client_address(), packet.to_string());
         }
     } else {
+        if (performance_metrics_) {
+            performance_metrics_->record_error();
+        }
         if (logger_) {
             logger_->warn("Failed to send UTC time to {}", connection->get_client_address());
         }
@@ -219,6 +256,9 @@ void UTCServer::handle_connection(std::unique_ptr<UTCConnection> connection) {
     }
 
     active_connections_--;
+    if (performance_metrics_) {
+        performance_metrics_->update_active_connections(active_connections_.load());
+    }
 }
 
 void UTCServer::worker_thread_main() {
@@ -305,6 +345,44 @@ void UTCServer::update_reference_time() {
     if (logger_) {
         logger_->debug("Reference time updated (using system time)");
     }
+}
+
+bool UTCServer::reload_config(const std::string& config_file) {
+    if (!config_) {
+        return false;
+    }
+    
+    // Create a temporary config to validate before applying
+    UTCConfig temp_config;
+    if (!temp_config.load(config_file)) {
+        if (logger_) {
+            logger_->error("Failed to load configuration file for reload: {}", config_file);
+        }
+        return false;
+    }
+    
+    // Validate the new configuration
+    if (!temp_config.validate()) {
+        if (logger_) {
+            logger_->error("Configuration validation failed:");
+            for (const auto& error : temp_config.get_validation_errors()) {
+                logger_->error("  - {}", error);
+            }
+        }
+        return false;
+    }
+    
+    // Apply the new configuration
+    *config_ = temp_config;
+    
+    // Reload environment variables
+    config_->load_from_environment();
+    
+    if (logger_) {
+        logger_->info("Configuration reloaded successfully from: {}", config_file);
+    }
+    
+    return true;
 }
 
 } // namespace simple_utcd

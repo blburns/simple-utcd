@@ -25,6 +25,7 @@
 #include <ctime>
 #include <syslog.h>
 #include <unistd.h>
+#include <cstdio>
 #if defined(ENABLE_JSON) && ENABLE_JSON
 #include <json/json.h>
 #endif
@@ -36,6 +37,10 @@ Logger::Logger()
     , console_enabled_(true)
     , syslog_enabled_(false)
     , json_format_(false)
+    , log_rotation_enabled_(false)
+    , max_log_size_bytes_(10 * 1024 * 1024) // 10MB default
+    , max_log_files_(5)
+    , current_log_size_(0)
 {
     // Initialize syslog if enabled
     if (syslog_enabled_) {
@@ -67,7 +72,74 @@ void Logger::set_log_file(const std::string& filename) {
     file_stream_ = std::make_unique<std::ofstream>(filename, std::ios::app);
     if (!file_stream_->is_open()) {
         std::cerr << "Failed to open log file: " << filename << std::endl;
+    } else {
+        // Get current file size
+        file_stream_->seekp(0, std::ios::end);
+        current_log_size_ = file_stream_->tellp();
+        file_stream_->seekp(0, std::ios::end);
     }
+}
+
+void Logger::set_max_log_size(size_t max_size_bytes) {
+    max_log_size_bytes_ = max_size_bytes;
+}
+
+void Logger::set_max_log_files(size_t max_files) {
+    max_log_files_ = max_files;
+}
+
+void Logger::enable_log_rotation(bool enable) {
+    log_rotation_enabled_ = enable;
+}
+
+bool Logger::should_rotate_log() const {
+    if (!log_rotation_enabled_ || log_file_.empty()) {
+        return false;
+    }
+    
+    return current_log_size_ >= max_log_size_bytes_;
+}
+
+void Logger::rotate_log() {
+    if (log_file_.empty()) {
+        return;
+    }
+    
+    // Close current file
+    if (file_stream_ && file_stream_->is_open()) {
+        file_stream_->close();
+    }
+    
+    // Rotate existing log files
+    for (int i = static_cast<int>(max_log_files_) - 1; i > 0; --i) {
+        std::string old_file = log_file_ + "." + std::to_string(i);
+        std::string new_file = log_file_ + "." + std::to_string(i + 1);
+        
+        // Check if old file exists and rename it
+        std::ifstream src(old_file, std::ios::binary);
+        if (src.good()) {
+            std::ofstream dst(new_file, std::ios::binary);
+            dst << src.rdbuf();
+            src.close();
+            dst.close();
+            std::remove(old_file.c_str());
+        }
+    }
+    
+    // Move current log to .1
+    std::string rotated_file = log_file_ + ".1";
+    std::ifstream src(log_file_, std::ios::binary);
+    if (src.good()) {
+        std::ofstream dst(rotated_file, std::ios::binary);
+        dst << src.rdbuf();
+        src.close();
+        dst.close();
+    }
+    std::remove(log_file_.c_str());
+    
+    // Open new log file
+    file_stream_ = std::make_unique<std::ofstream>(log_file_, std::ios::app);
+    current_log_size_ = 0;
 }
 
 void Logger::enable_console(bool enable) {
@@ -132,8 +204,16 @@ void Logger::log(LogLevel level, const std::string& message) {
 
     // File output
     if (file_stream_ && file_stream_->is_open()) {
+        // Check if rotation is needed
+        if (should_rotate_log()) {
+            rotate_log();
+        }
+        
         *file_stream_ << log_message << std::endl;
         file_stream_->flush();
+        
+        // Update current log size
+        current_log_size_ += log_message.length() + 1; // +1 for newline
     }
 
     // Syslog output (always use plain text for syslog)
