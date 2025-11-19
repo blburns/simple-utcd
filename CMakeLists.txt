@@ -54,6 +54,8 @@ list(APPEND SOURCES
     src/core/graceful_degradation.cpp
     src/core/backup_restore.cpp
     src/core/watchdog.cpp
+    src/core/tls_manager.cpp
+    src/core/certificate_acl.cpp
 )
 
 # Create executable

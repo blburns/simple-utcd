@@ -32,6 +32,8 @@ set(TEST_SOURCES
     test_graceful_degradation.cpp
     test_backup_restore.cpp
     test_watchdog.cpp
+    test_tls_manager.cpp
+    test_certificate_acl.cpp
     test_main.cpp
 )
 
