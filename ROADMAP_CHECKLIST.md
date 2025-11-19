@@ -158,10 +158,10 @@
   - [x] Enhanced health check endpoints
   - [x] Dependency health tracking
   - [x] Health status aggregation
-- [ ] Automatic restart
-  - [ ] Watchdog process
-  - [ ] Automatic service recovery
-  - [ ] Restart policy configuration
+- [x] Automatic restart
+  - [x] Watchdog process
+  - [x] Automatic service recovery
+  - [x] Restart policy configuration
 - [x] Dependency monitoring
   - [x] Network connectivity checks
   - [x] Upstream server availability

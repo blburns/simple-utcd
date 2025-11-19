@@ -53,6 +53,7 @@ list(APPEND SOURCES
     src/core/upstream_manager.cpp
     src/core/graceful_degradation.cpp
     src/core/backup_restore.cpp
+    src/core/watchdog.cpp
 )
 
 # Create executable

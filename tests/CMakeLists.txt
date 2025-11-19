@@ -31,6 +31,7 @@ set(TEST_SOURCES
     test_upstream_manager.cpp
     test_graceful_degradation.cpp
     test_backup_restore.cpp
+    test_watchdog.cpp
     test_main.cpp
 )
 
